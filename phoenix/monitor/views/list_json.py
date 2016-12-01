@@ -15,7 +15,8 @@ class JobListJson(JobList):
     def view(self):
         jobs_dict = JobList.view(self)
         items, count = self.filter_jobs(page=jobs_dict['page'], limit=jobs_dict['limit'], tag=jobs_dict['tag'],
-                                        access=jobs_dict['access'], status=jobs_dict['status'], sort=jobs_dict['sort'])
+                                        access=jobs_dict['access'], status=jobs_dict['status'], sort=jobs_dict['sort'],
+                                        all_user=True)
 
         filtered_dict = {}
         req_props = ['access', 'status', 'page', 'limit', 'tag', 'sort',

@@ -51,7 +51,7 @@ class JobList(MyView):
         super(JobList, self).__init__(request, name='monitor', title='Job List')
         self.collection = self.request.db.jobs
 
-    def filter_jobs(self, page=0, limit=10, tag=None, access=None, status=None, sort='created'):
+    def filter_jobs(self, page=0, limit=10, tag=None, access=None, status=None, sort='created', all_user=False):
         search_filter = {}
         if access == 'public':
             search_filter['tags'] = 'public'
@@ -64,6 +64,10 @@ class JobList(MyView):
             if tag is not None:
                 search_filter['tags'] = tag
             search_filter['userid'] = authenticated_userid(self.request)
+
+        if all_user:
+            del search_filter['userid']
+
         if status == 'Running':
             search_filter['status'] = {'$in': ['ProcessAccepted', 'ProcessPaused', 'ProcessStarted']}
         elif status == 'Finished':
