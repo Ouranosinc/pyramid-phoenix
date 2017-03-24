@@ -1,4 +1,4 @@
-VERSION := 0.3.7
+VERSION := 0.3.9
 RELEASE := master
 
 # Include custom config if it is available
@@ -14,7 +14,8 @@ CPU_ARCH := $(shell uname -m 2>/dev/null || uname -p 2>/dev/null || echo "unknow
 
 # Python
 SETUPTOOLS_VERSION := 27.2.0
-CONDA_VERSION := 4.2.13
+CONDA_VERSION := 4.3
+BUILDOUT_VERSION := 2.9.2
 
 # Anaconda
 ANACONDA_HOME ?= $(HOME)/anaconda
@@ -151,7 +152,7 @@ anaconda:
 .PHONY: conda_config
 conda_config: anaconda
 	@echo "Update ~/.condarc"
-	@-"$(ANACONDA_HOME)/bin/conda" install -y conda=$(CONDA_VERSION)
+	@-"$(ANACONDA_HOME)/bin/conda" install -y conda=$(CONDA_VERSION) requests
 	@"$(ANACONDA_HOME)/bin/conda" config --add envs_dirs $(CONDA_ENVS_DIR)
 	@"$(ANACONDA_HOME)/bin/conda" config --set ssl_verify true
 	@"$(ANACONDA_HOME)/bin/conda" config --set update_dependencies false
@@ -229,7 +230,7 @@ srcclean:
 distclean: backup clean
 	@echo "Cleaning distribution ..."
 	@git diff --quiet HEAD || echo "There are uncommited changes! Not doing 'git clean' ..."
-	@-git clean -dfx --exclude=*.bak
+	@-git clean -dfx -e *.bak -e custom.cfg -e Makefile.config
 
 .PHONY: passwd
 passwd: custom.cfg

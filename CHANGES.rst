@@ -1,6 +1,25 @@
 Changes
 *******
 
+
+0.7.2 (2017-03-21)
+==================
+
+* wizard: esgf-logon with provider + username.
+* updated pyramid 1.8.2 and deform 2.0.4.
+* refactored esgfsearch.
+* esgfsearch can be opened from the search menu.
+* fixed wizard to use proxy url for worker wps.
+* added _compat.py module.
+
+0.7.1 (2017-02-20)
+==================
+
+* updated to twitcher 0.3.2.
+* added esgflogon task.
+* update certificate with ESGF oauth token.
+* update makefile.
+
 0.7.0 (2017-01-27)
 ==================
 

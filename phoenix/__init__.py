@@ -1,7 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-__version__ = '0.7.0'
+__version__ = '0.7.2'
 
 
 def main(global_config, **settings):
@@ -31,6 +31,9 @@ def main(global_config, **settings):
     # celery
     config.include('pyramid_celery')
     config.configure_celery(global_config['__file__'])
+
+    # storage
+    config.include('pyramid_storage')
 
     # ldap
     config.include('phoenix.ldap')
@@ -72,6 +75,9 @@ def main(global_config, **settings):
 
     # job monitor
     config.include('phoenix.monitor')
+
+    # esgf search
+    config.include('phoenix.esgfsearch')
 
     # user profiles
     config.include('phoenix.people')
