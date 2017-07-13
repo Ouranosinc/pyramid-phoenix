@@ -1,9 +1,10 @@
 from pyramid_layout.panel import panel_config
 
 from phoenix.wps import check_status
+from phoenix.monitor.utils import escape_output
 
 import logging
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 def collect_inputs(status_location=None, response=None):
@@ -28,29 +29,29 @@ class Inputs(object):
         self.request = request
         self.session = self.request.session
 
-    @panel_config(name='monitor_inputs', renderer='../templates/monitor/panels/media.pt')
+    @panel_config(name='job_inputs', renderer='../templates/monitor/panels/media.pt')
     def panel(self):
         job_id = self.request.matchdict.get('job_id')
         wps_output_url = self.request.registry.settings.get('wps.output.url')
 
         items = []
         for inp in process_inputs(self.request, job_id):
-            dataset = None
+            wms_dataset_path = None
             proxy_reference = inp.reference
             # TODO: use config for nwms dynamic services
             if self.request.map_activated and inp.mimeType and 'netcdf' in inp.mimeType and inp.reference:
                 if 'cache' in inp.reference:
-                    dataset = "cache" + inp.reference.split('cache')[1]
+                    wms_dataset_path = "cache" + inp.reference.split('cache')[1]
                 elif 'wpsoutputs' in inp.reference:
-                    dataset = "outputs" + inp.reference.split('wpsoutputs')[1]
+                    wms_dataset_path = "outputs" + inp.reference.split('wpsoutputs')[1]
                 elif 'download' in inp.reference:
-                    dataset = "uploads" + inp.reference.split('download')[1]
+                    wms_dataset_path = "uploads" + inp.reference.split('download')[1]
                 elif 'CMIP5/data' in inp.reference:
-                    dataset = "archive-cmip5" + inp.reference.split('CMIP5/data')[1]
+                    wms_dataset_path = "archive-cmip5" + inp.reference.split('CMIP5/data')[1]
                 elif 'CORDEX/data' in inp.reference:
-                    dataset = "archive-cordex" + inp.reference.split('CORDEX/data')[1]
+                    wms_dataset_path = "archive-cordex" + inp.reference.split('CORDEX/data')[1]
                 elif 'OBS4MIPS/data' in inp.reference:
-                    dataset = "archive-obs4mips" + inp.reference.split('OBS4MIPS/data')[1]
+                    wms_dataset_path = "archive-obs4mips" + inp.reference.split('OBS4MIPS/data')[1]
             if inp.reference and wps_output_url and inp.reference.startswith(wps_output_url):
                 proxy_reference = self.request.route_url(
                     'download_wpsoutputs',
@@ -58,17 +59,22 @@ class Inputs(object):
                 LOGGER.debug("proxy reference: %s", proxy_reference)
             if inp.mimeType:
                 category = 'ComplexType'
+                data = inp.data
+            elif inp.dataType == 'BoundingBoxData':
+                category = 'BoundingBoxType'
+                data = ["{0.minx},{0.miny},{0.maxx},{0.maxy}".format(bbox) for bbox in inp.data]
             else:
                 category = 'LiteralType'
+                data = inp.data
 
             items.append(dict(title=inp.title,
                               abstract=inp.abstract,
                               identifier=inp.identifier,
                               mime_type=inp.mimeType,
-                              data=inp.data,
-                              reference=inp.reference,
-                              proxy_reference=proxy_reference,
-                              dataset=dataset,
+                              data=escape_output(data),
+                              reference=escape_output(inp.reference),
+                              proxy_reference=escape_output(proxy_reference),
+                              wms_dataset_path=escape_output(wms_dataset_path),
                               category=category))
 
         items = sorted(items, key=lambda item: item['identifier'], reverse=1)

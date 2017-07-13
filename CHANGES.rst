@@ -1,6 +1,27 @@
 Changes
 *******
 
+0.8.0 (2017-07-05)
+==================
+
+* updated layout.
+* added pinned processes.
+* updated ncmws 2.2.8.
+* made twitcher workdir configurable.
+* esgflogon can be called indepentent of wizard.
+* added esgf.metadata with search constraints.
+* added CSRF checks.
+
+0.7.3 (2017-05-18)
+==================
+
+* added editorconfig
+* Merge pull request #138 from Ouranosinc/master
+    
+    Add a json backend into Phoenix
+* updated nginx 1.10.3
+* updated twitcher 0.3.4
+
 
 0.7.2 (2017-03-21)
 ==================

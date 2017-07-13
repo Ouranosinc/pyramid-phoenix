@@ -1,8 +1,10 @@
 import yaml
+import dateparser
 
 from pyramid.view import view_config
 from pyramid.security import authenticated_userid
 import colander
+import deform
 from deform.widget import SelectWidget
 
 from owslib.wps import WebProcessingService
@@ -13,7 +15,7 @@ from phoenix.wizard.views import Wizard
 from phoenix._compat import urlparse
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 def includeme(config):
@@ -37,17 +39,17 @@ def job_to_state(request, job_id):
             workflow = yaml.load(execution.dataInputs[0].data[0])
 
             # TODO: avoid getcaps
-            logger.debug("worker url: %s", workflow['worker']['url'])
+            LOGGER.debug("worker url: %s", workflow['worker']['url'])
             parsed_url = urlparse(workflow['worker']['url'])
             url = "{0.scheme}://{0.netloc}{0.path}".format(parsed_url)
             wps = WebProcessingService(url=url, verify=False, skip_caps=False)
-            logger.debug("wps url: %s", wps.url)
+            LOGGER.debug("wps url: %s", wps.url)
             if '/ows/proxy' in parsed_url.path:
                 service_name = parsed_url.path.split('/')[-1]
             else:
                 service = request.catalog.get_service_by_url(wps.url)
                 service_name = service['name']
-            logger.debug('service_name=%s', service_name)
+            LOGGER.debug('service_name=%s', service_name)
             state['wizard_wps'] = {'identifier': service_name}
             state['wizard_process'] = {'identifier': workflow['worker']['identifier']}
             inputs = {}
@@ -62,14 +64,20 @@ def job_to_state(request, job_id):
             for inp in process.dataInputs:
                 if 'boolean' in inp.dataType and inp.identifier in inputs:
                     inputs[inp.identifier] = [val.lower() == 'true' for val in inputs[inp.identifier]]
+                elif inp.dataType in ['date', 'time', 'dateTime'] and inp.identifier in inputs:
+                    inputs[inp.identifier] = [dateparser.parse(val) for val in inputs[inp.identifier]]
                 if inp.maxOccurs < 2 and inp.identifier in inputs:
                     inputs[inp.identifier] = inputs[inp.identifier][0]
             state['wizard_literal_inputs'] = inputs
             state['wizard_complex_inputs'] = {'identifier': workflow['worker']['resource']}
             if workflow['name'] == 'wizard_esgf_search':
                 state['wizard_source'] = {'source': 'wizard_esgf_search'}
-                import json
-                state['wizard_esgf_search'] = {'selection': json.dumps(workflow['source']['esgf'])}
+                state['wizard_esgf_search'] = workflow['source']['esgf']
+                # TODO: thats the wrong place and probably the wrong way to do this
+                if 'start' in state['wizard_esgf_search']:
+                    state['wizard_esgf_search']['start'] = dateparser.parse(state['wizard_esgf_search']['start'])
+                if 'end' in state['wizard_esgf_search']:
+                    state['wizard_esgf_search']['end'] = dateparser.parse(state['wizard_esgf_search']['end'])
             elif workflow['name'] == 'wizard_solr':
                 state['wizard_source'] = {'source': 'wizard_solr'}
             elif workflow['name'] == 'wizard_threddsservice':
@@ -79,7 +87,7 @@ def job_to_state(request, job_id):
     return state
 
 
-class FavoriteSchema(colander.MappingSchema):
+class FavoriteSchema(deform.schema.CSRFSchema):
     @colander.deferred
     def deferred_favorite_widget(node, kw):
         jobs = kw.get('jobs', [])
@@ -90,7 +98,7 @@ class FavoriteSchema(colander.MappingSchema):
         choices = [('', 'No Favorite')]
         if last:
             choices.append(('last', 'Last Run'))
-        logger.debug('jobs %s', jobs)
+        LOGGER.debug('jobs %s', jobs)
         choices.extend([(job['identifier'], gentitle(job)) for job in jobs])
         return SelectWidget(values=choices)
 
@@ -123,7 +131,7 @@ class Start(Wizard):
         fav_jobs = self.collection.find(search_filter).limit(50).sort([('created', -1)])
         if fav_jobs.count() > 0:
             jobs.extend(list(fav_jobs))
-        return FavoriteSchema().bind(jobs=jobs, last='last' in self.favorite.names())
+        return FavoriteSchema().bind(request=self.request, jobs=jobs, last='last' in self.favorite.names())
 
     def appstruct(self):
         struct = {'job_id': 'last'}

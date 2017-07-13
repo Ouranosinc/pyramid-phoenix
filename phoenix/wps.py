@@ -14,9 +14,11 @@ from pyramid.security import authenticated_userid
 
 from phoenix.geoform.widget import BBoxWidget, ResourceWidget
 from phoenix.geoform.form import BBoxValidator
+from phoenix.geoform.form import URLValidator
+from phoenix.geoform.form import TextValidator
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 def check_status(url=None, response=None, sleep_secs=2, verify=False):
@@ -28,10 +30,10 @@ def check_status(url=None, response=None, sleep_secs=2, verify=False):
     """
     execution = WPSExecution()
     if response:
-        logger.debug("using response document ...")
+        LOGGER.debug("using response document ...")
         xml = response
     elif url:
-        logger.debug('using status_location url ...')
+        LOGGER.debug('using status_location url ...')
         xml = requests.get(url, verify=verify).content
     else:
         raise Exception("you need to provide a status-location url or response object.")
@@ -50,24 +52,24 @@ def appstruct_to_inputs(request, appstruct):
     """
     Transforms appstruct to wps inputs.
     """
-    # logger.debug("appstruct=%s", appstruct)
+    # LOGGER.debug("appstruct=%s", appstruct)
     inputs = []
     for key, values in appstruct.items():
-        if key in ['_async_check']:
+        if key in ['_async_check', 'csrf_token']:
             continue
         if not isinstance(values, types.ListType):
             values = [values]
         for value in values:
-            # logger.debug("key=%s, value=%s, type=%s", key, value, type(value))
+            # LOGGER.debug("key=%s, value=%s, type=%s", key, value, type(value))
             inputs.append((str(key).strip(), str(value).strip()))
-    # logger.debug("inputs form appstruct=%s", inputs)
+    # LOGGER.debug("inputs form appstruct=%s", inputs)
     return inputs
 
 # wps input schema
 # ----------------
 
 
-class WPSSchema(colander.MappingSchema):
+class WPSSchema(deform.schema.CSRFSchema):
     """
     Build a Colander Schema based on the WPS data inputs.
 
@@ -79,7 +81,7 @@ class WPSSchema(colander.MappingSchema):
 
     appstruct = {}
 
-    def __init__(self, request, hide_complex=False, process=None, use_async=False, unknown='ignore', user=None, **kw):
+    def __init__(self, request, hide_complex=False, process=None, use_async=False, user=None, **kw):
         """ Initialise the given mapped schema according to options provided.
 
         Arguments/Keywords
@@ -88,17 +90,6 @@ class WPSSchema(colander.MappingSchema):
            An ``WPS`` process description that you want a ``Colander`` schema
            to be generated for.
 
-        unknown
-           Represents the `unknown` argument passed to
-           :class:`colander.Mapping`.
-
-           From Colander:
-
-           ``unknown`` controls the behavior of this type when an unknown
-           key is encountered in the cstruct passed to the deserialize
-           method of this instance.
-
-           Default: 'ignore'
         \*\*kw
            Represents *all* other options able to be passed to a
            :class:`colander.SchemaNode`. Keywords passed will influence the
@@ -111,12 +102,10 @@ class WPSSchema(colander.MappingSchema):
 
         kwargs = kw.copy()
 
-        # The default type of this SchemaNode is Mapping.
-        colander.SchemaNode.__init__(self, colander.Mapping(unknown), **kwargs)
+        super(WPSSchema, self).__init__(**kwargs)
         self.request = request
         self.hide_complex = hide_complex
         self.process = process
-        self.unknown = unknown
         self.user = user
         self.kwargs = kwargs or {}
         if use_async:
@@ -137,36 +126,21 @@ class WPSSchema(colander.MappingSchema):
     def add_nodes(self, process):
         if process is None:
             return
-
-        logger.debug("adding nodes for process inputs, num inputs = %s", len(process.dataInputs))
-
         for data_input in process.dataInputs:
-            node = None
-
-            if data_input.dataType is None:
-                node = self.boundingbox(data_input)
-            # elif 'www.w3.org' in data_input.dataType:
-            #    node = self.literal_data(data_input)
-            elif 'ComplexData' in data_input.dataType:
+            if 'ComplexData' in data_input.dataType:
                 if not self.hide_complex:
-                    node = self.complex_data(data_input)
+                    self.add(self.complex_data(data_input))
             elif 'BoundingBoxData' in data_input.dataType:
-                node = self.bbox_data(data_input)
-            # elif 'LiteralData' in data_input.dataType:# TODO: workaround for geoserver wps
-            #    node = self.literal_data(data_input)
+                self.add(self.bbox_data(data_input))
             else:
-                # logger.warning('unknown data type %s', data_input.dataType)
-                node = self.literal_data(data_input)
-            if node is None:
-                continue
-
-            self.add(node)
+                self.add(self.literal_data(data_input))
 
     def literal_data(self, data_input):
         node = colander.SchemaNode(
             self.colander_literal_type(data_input),
             name=data_input.identifier,
             title=data_input.title,
+            validator=TextValidator(),
         )
 
         # sometimes abstract is not set
@@ -200,7 +174,7 @@ class WPSSchema(colander.MappingSchema):
         return node
 
     def colander_literal_type(self, data_input):
-        # logger.debug('data input type = %s', data_input.dataType)
+        # LOGGER.debug('data input type = %s', data_input.dataType)
         if 'boolean' in data_input.dataType:
             return colander.Boolean()
         elif 'integer' in data_input.dataType:
@@ -236,7 +210,7 @@ class WPSSchema(colander.MappingSchema):
 
     def colander_literal_widget(self, node, data_input):
         if len(data_input.allowedValues) > 0 and 'AnyValue' not in data_input.allowedValues:
-            # logger.debug('allowed values %s', data_input.allowedValues)
+            # LOGGER.debug('allowed values %s', data_input.allowedValues)
             choices = []
             for value in data_input.allowedValues:
                 choices.append([value, value])
@@ -247,6 +221,19 @@ class WPSSchema(colander.MappingSchema):
             node.widget = deform.widget.CheckboxWidget()
         elif 'password' in data_input.identifier:
             node.widget = deform.widget.PasswordWidget(size=20)
+        elif type(node.typ) == colander.String:
+            widget = None
+            if hasattr(data_input, 'metadata'):
+                for metadata in data_input.metadata:
+                    mime_types = ['application/x-ogc-dods']
+                    if metadata.title in mime_types:
+                        widget = ResourceWidget(
+                            cart=self.request.has_permission('edit'),
+                            mime_types=mime_types,
+                            upload=False,
+                            storage_url=self.request.storage.base_url)
+                        break
+            node.widget = widget or deform.widget.TextInputWidget()
         else:
             node.widget = deform.widget.TextInputWidget()
 
@@ -278,10 +265,14 @@ class WPSSchema(colander.MappingSchema):
         return node
 
     def complex_data(self, data_input):
+        mime_types = [value.mimeType for value in data_input.supportedValues]
+        LOGGER.debug("mime_types for resource widget: %s", mime_types)
         widget = ResourceWidget(
-            cart=self.request.has_permission('submit'),
+            cart=self.request.has_permission('edit'),
+            mime_types=mime_types,
             upload=True,
-            storage_url=self.request.storage.base_url)
+            storage_url=self.request.storage.base_url,
+            size_limit=self.request.max_file_size * 1048576)
 
         resource_node = colander.SchemaNode(
             colander.String(),
@@ -289,10 +280,8 @@ class WPSSchema(colander.MappingSchema):
             title="Resource",
             description="Enter a URL pointing to your resource.",
             widget=widget,
-            # widget=deform.widget.TextInputWidget(),
-            # missing=colander.null,
             default=self._url_node_default(data_input),
-            validator=colander.url,
+            validator=URLValidator(),
         )
 
         # sequence of nodes ...
@@ -322,7 +311,7 @@ class WPSSchema(colander.MappingSchema):
         mime_types = []
         if len(data_input.supportedValues) > 0:
             mime_types = [str(value.mimeType) for value in data_input.supportedValues]
-        # logger.debug("mime-types: %s", mime_types)
+        # LOGGER.debug("mime-types: %s", mime_types)
         # set current proxy certificate
         if 'application/x-pkcs7-mime' in mime_types and self.user is not None:
             # TODO: check if certificate is still valid
@@ -331,46 +320,11 @@ class WPSSchema(colander.MappingSchema):
             default = colander.null
         return default
 
-    def boundingbox(self, data_input):
-        node = colander.SchemaNode(
-            colander.String(),
-            name=data_input.identifier,
-            title=data_input.title,
-            default="0,-90,180,90",
-            widget=deform.widget.TextInputWidget()
-        )
-        # sometimes abstract is not set
-        node.description = getattr(data_input, 'abstract', '')
-
-        # optional value?
-        if data_input.minOccurs == 0:
-            node.missing = colander.drop
-
-        # validator
-        pattern = '-?\d+,-?\d+,-?\d+,-?\d+'
-        regex = re.compile(pattern)
-        node.validator = colander.Regex(
-            regex=regex,
-            msg='String does not match pattern: minx,miny,maxx,maxy')
-
-        # finally add node to root schema
-        # sequence of nodes ...
-        if data_input.maxOccurs > 1:
-            node = colander.SchemaNode(
-                colander.Sequence(),
-                node,
-                name=data_input.identifier,
-                title=data_input.title,
-                validator=colander.Length(max=data_input.maxOccurs)
-            )
-
-        return node
-
     def bind(self, **kw):
         cloned = self.clone()
         cloned._bind(kw)
 
-        logger.debug('after bind: num schema children = %s', len(cloned.children))
+        LOGGER.debug('after bind: num schema children = %s', len(cloned.children))
         return cloned
 
     def clone(self):
@@ -378,7 +332,6 @@ class WPSSchema(colander.MappingSchema):
             self.request,
             self.hide_complex,
             self.process,
-            self.unknown,
             self.user,
             **self.kwargs)
         cloned.__dict__.update(self.__dict__)

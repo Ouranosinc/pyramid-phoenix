@@ -3,13 +3,13 @@ from pyramid.events import subscriber
 from phoenix.events import JobFinished, JobStarted
 
 import logging
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 @subscriber(JobStarted)
 def notify_job_started(event):
     event.request.session.flash(
-        '<h4><img src="/static/phoenix/img/ajax-loader.gif"></img> Job Created. Please wait ...</h4>', queue='warning')
+        '<h4><img src="/static/phoenix/img/ajax-loader.gif"></img> Job Created. Please wait ...</h4>', queue='success')
 
 
 @subscriber(JobFinished)

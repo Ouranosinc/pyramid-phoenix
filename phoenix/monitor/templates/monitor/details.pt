@@ -18,42 +18,41 @@
 
   <div metal:fill-slot="content">
     <div class="container">
-      <div class="page-header">
-        <h2>Details
-            <small>
-              Please note that offline jobs are scheduled and may take a long time to run.
-              This page will continue to poll offline jobs when they are running.
-            </small>
-        </h2>
-      </div>
+      <!-- header -->
+      <h2 class="page-header">
+        <i class="fa fa-info-circle text-muted"></i> Job Details
+        <small>
+          This page shows the job details and polls the status of a running job.
+        </small>
+      </h2><!-- header -->
 
-      ${panel('monitor_details')}
+      ${panel('job_details')}
 
       <ul class="nav nav-tabs">
          <li class="${'active' if active=='log' else ''}" role="presentation">
-          <a href="${request.route_path('monitor_details', job_id=job_id, tab='log')}">
-            <i class="fa fa-list"></i> Log
+          <a href="${request.route_path('job_details', job_id=job_id, tab='log')}">
+            <i class="fa fa-comments-o"></i> Job Log
           </a>
         </li>
         <li class="${'active' if active=='inputs' else ''}" role="presentation">
-          <a href="${request.route_path('monitor_details', job_id=job_id, tab='inputs')}">
+          <a href="${request.route_path('job_details', job_id=job_id, tab='inputs')}">
             <i class="fa fa-arrow-circle-o-down"></i>
             Inputs
           </a>
         </li>
         <li class="${'active' if active=='outputs' else ''}" role="presentation">
-          <a href="${request.route_path('monitor_details', job_id=job_id, tab='outputs')}">
+          <a href="${request.route_path('job_details', job_id=job_id, tab='outputs')}">
             <i class="fa fa-arrow-circle-o-up"></i> Outputs
           </a>
         </li>
-        <li class="${'active' if active=='xml' else ''}" role="presentation">
-          <a href="${request.route_path('monitor_details', job_id=job_id, tab='xml')}">
+        <li class="${'active' if active=='xml' else ''}" role="presentation" tal:condition="request.has_permission('submit')">
+          <a href="${request.route_path('job_details', job_id=job_id, tab='xml')}">
             <i class="fa fa-code"></i> View as XML
           </a>
         </li>
       </ul>
 
-      ${panel('monitor_'+active)}
+      ${panel('job_'+active)}
 
     </div>
 

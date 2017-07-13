@@ -1,10 +1,13 @@
 import colander
+import deform
 from deform.widget import RadioChoiceWidget
 
 from pyramid.view import view_config
 
 from owslib.wps import WebProcessingService
 
+from phoenix.esgf.search import query_params_from_appstruct
+from phoenix.esgf.metadata import process_constraints
 from phoenix.wizard.views import Wizard
 
 SOURCE_TYPES = {
@@ -33,7 +36,7 @@ class SourceSchemaNode(colander.SchemaNode):
         self.widget = RadioChoiceWidget(values=values)
 
 
-class Schema(colander.MappingSchema):
+class Schema(deform.schema.CSRFSchema):
     source = SourceSchemaNode()
 
 
@@ -41,15 +44,14 @@ class ChooseSource(Wizard):
     def __init__(self, request):
         super(ChooseSource, self).__init__(
             request, name='wizard_source', title="Choose Data Source")
-        wps = WebProcessingService(
+        self.wps = WebProcessingService(
             url=request.route_url('owsproxy', service_name=self.wizard_state.get('wizard_wps')['identifier']),
             verify=False, skip_caps=True)
-        process = wps.describeprocess(self.wizard_state.get('wizard_process')['identifier'])
-        for data_input in process.dataInputs:
+        self.process = self.wps.describeprocess(self.wizard_state.get('wizard_process')['identifier'])
+        for data_input in self.process.dataInputs:
             if data_input.identifier == self.wizard_state.get('wizard_complex_inputs')['identifier']:
                 self.title = "Choose Data Source for %s" % data_input.title
                 break
-        # self.description = self.wizard_state.get('wizard_complex_inputs')['identifier']
 
     def breadcrumbs(self):
         breadcrumbs = super(ChooseSource, self).breadcrumbs()
@@ -61,7 +63,21 @@ class ChooseSource(Wizard):
 
     def next_success(self, appstruct):
         self.success(appstruct)
-        return self.next(appstruct.get('source'))
+        # TODO: that is a dirty way to init esgf search
+        if appstruct.get('source') == 'wizard_esgf_search':
+            defaults = dict(constraints=process_constraints(self.process))
+            query = query_params_from_appstruct(self.wizard_state.get('wizard_esgf_search'), defaults)
+            if not self.request.cert_ok:
+                msg = """<strong>Error:</strong> You are not allowed to access ESGF data.
+                Please <a href="{}" class="alert-link">update</a> your ESGF credentials."""
+                callback = self.request.current_route_path()
+                self.session.flash(
+                    msg.format(self.request.route_path('esgflogon', _query=[('callback', callback)])),
+                    queue='danger')
+                return self.next(self.name)
+        else:
+            query = None
+        return self.next(appstruct.get('source'), query=query)
 
     def view(self):
         return super(ChooseSource, self).view()

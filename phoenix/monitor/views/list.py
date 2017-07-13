@@ -14,10 +14,9 @@ from phoenix.grid import CustomGrid
 from phoenix.views import MyView
 from phoenix.monitor.views.actions import monitor_buttons
 from phoenix.utils import make_tags
-from phoenix.security import default_auth_protocol
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 class CaptionSchema(colander.MappingSchema):
@@ -45,13 +44,13 @@ class LabelsSchema(colander.MappingSchema):
         missing="dev")
 
 
-@view_defaults(permission='view', layout='default')
+@view_defaults(permission='edit', layout='default')
 class JobList(MyView):
     def __init__(self, request):
         super(JobList, self).__init__(request, name='monitor', title='Job List')
         self.collection = self.request.db.jobs
 
-    def filter_jobs(self, page=0, limit=10, tag=None, access=None, status=None, sort='created', all_user=False):
+    def filter_jobs(self, page=0, limit=10, tag=None, access=None, status=None, sort='created'):
         search_filter = {}
         if access == 'public':
             search_filter['tags'] = 'public'
@@ -64,10 +63,6 @@ class JobList(MyView):
             if tag is not None:
                 search_filter['tags'] = tag
             search_filter['userid'] = authenticated_userid(self.request)
-
-        if all_user:
-            del search_filter['userid']
-
         if status == 'Running':
             search_filter['status'] = {'$in': ['ProcessAccepted', 'ProcessPaused', 'ProcessStarted']}
         elif status == 'Finished':
@@ -95,15 +90,15 @@ class JobList(MyView):
     def process_caption_form(self, form):
         try:
             controls = self.request.POST.items()
-            logger.debug("controls %s", controls)
+            LOGGER.debug("controls %s", controls)
             appstruct = form.validate(controls)
             self.collection.update_one({'identifier': appstruct['identifier']},
                                        {'$set': {'caption': appstruct['caption']}})
         except ValidationFailure, e:
-            logger.exception("Validation of caption failed.")
+            LOGGER.exception("Validation of caption failed.")
             self.session.flash("Validation of caption failed.", queue='danger')
         except Exception, e:
-            logger.exception("Edit caption failed.")
+            LOGGER.exception("Edit caption failed.")
             self.session.flash("Edit caption failed.", queue='danger')
         else:
             self.session.flash("Caption updated.", queue='success')
@@ -119,26 +114,26 @@ class JobList(MyView):
     def process_labels_form(self, form):
         try:
             controls = self.request.POST.items()
-            logger.debug("controls %s", controls)
+            LOGGER.debug("controls %s", controls)
             appstruct = form.validate(controls)
             tags = make_tags(appstruct['labels'])
             self.collection.update_one({'identifier': appstruct['identifier']}, {'$set': {'tags': tags}})
         except ValidationFailure, e:
-            logger.exception("Validation of labels failed.")
+            LOGGER.exception("Validation of labels failed.")
             self.session.flash("Validation of labels failed.", queue='danger')
         except Exception, e:
-            logger.exception("Edit labels failed.")
+            LOGGER.exception("Edit labels failed.")
             self.session.flash("Edit labels failed.", queue='danger')
         else:
             self.session.flash("Labels updated.", queue='success')
         return HTTPFound(location=self.request.route_path('monitor'))
-    
+
     @view_config(route_name='monitor', renderer='../templates/monitor/list.pt', accept='text/html')
     def view(self):
-        if not self.request.has_permission('submit'):
+        if not self.request.has_permission('edit'):
             msg = """<strong>Warning:</strong> You are not allowed to monitor jobs.
-            Please <a href="%s" class="alert-link">sign in</a>.
-            """ % self.request.route_path('account_login', protocol=default_auth_protocol(self.request))
+            Please <a href="{}" class="alert-link">sign in</a>.
+            """.format(self.request.route_path('sign_in'))
             self.session.flash(msg, queue='warning')
 
         caption_form = self.generate_caption_form()
@@ -163,7 +158,7 @@ class JobList(MyView):
                 self.session['phoenix.selected-children'] = children
                 self.session.changed()
                 location = button.url(self.context, self.request)
-                logger.debug("button url = %s", location)
+                LOGGER.debug("button url = %s", location)
                 return HTTPFound(location, request=self.request)
 
         items, count = self.filter_jobs(page=page, limit=limit, tag=tag, access=access, status=status, sort=sort)
@@ -217,7 +212,7 @@ class JobsGrid(CustomGrid):
         from phoenix.utils import ActionButton
         buttons = list()
         buttons.append(ActionButton('results', title=u'Details', css_class=u'btn btn-default',
-                                    href=self.request.route_path('monitor_details', tab='log',
+                                    href=self.request.route_path('job_details', tab='log',
                                                                  job_id=item.get('identifier'))))
         buttons.append(ActionButton('restart_job', title=u'Restart', css_class=u'btn btn-default',
                                     href="/restart_job/%s" % item.get('identifier'),

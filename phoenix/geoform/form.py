@@ -3,14 +3,14 @@ from UserDict import DictMixin
 
 import colander
 from pyramid.security import authenticated_userid
-
-from pyramid_storage.exceptions import FileNotAllowed
-
-import logging
-logger = logging.getLogger(__name__)
+from pyramid.compat import urlparse
 
 
 class BBoxValidator(object):
+    """
+    Bounding-Box validator which succeeds if the bbox value has the format
+    :attr:`minx,miny,maxx,maxy` and values are in range (``-180 <= x <=180``, ``-90 <= y <=90``).
+    """
     def __call__(self, node, value):
         try:
             minx, miny, maxx, maxy = [float(val) for val in value.split(',', 3)]
@@ -29,6 +29,46 @@ class BBoxValidator(object):
                 raise colander.Invalid(node, "MinX greater than MaxX")
             if miny > maxy:
                 raise colander.Invalid(node, "MinY greater than MaxY")
+
+
+class URLValidator(object):
+    """
+    URL validator which can configured with allowed URL schemes.
+    """
+    def __init__(self, allowed_schemes=None):
+        self.allowed_schemes = allowed_schemes or ['http', 'https']
+
+    def __call__(self, node, value):
+        try:
+            parsed_url = urlparse.urlparse(value)
+        except:
+            raise colander.Invalid(node, "Invalid URL.")
+        else:
+            if parsed_url.scheme not in self.allowed_schemes:
+                raise colander.Invalid(node, "URL scheme {} is not allowed.".format(parsed_url.scheme))
+            if not parsed_url.netloc:
+                raise colander.Invalid(node, "Invalid URL.")
+            if '..' in parsed_url.path:
+                raise colander.Invalid(node, "Invalid URL.")
+
+
+class TextValidator(object):
+    """
+    """
+    def __init__(self, restricted_chars=None):
+        self.restricted_chars = restricted_chars or ["\\", "#", ";", "&", "!", "<", ">"]
+
+    def __call__(self, node, value):
+        try:
+            normalized_value = str(value).strip()
+        except:
+            raise colander.Invalid(node, "Invalid value.")
+        else:
+            if not normalized_value:
+                raise colander.Invalid(node, "Invalid value ... empty.")
+            for char in self.restricted_chars:
+                if char in normalized_value:
+                    raise colander.Invalid(node, "Invalid value ... containts restricted characters.")
 
 
 class FileUploadValidator(colander.All):

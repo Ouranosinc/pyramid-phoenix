@@ -7,8 +7,8 @@ dependencies:
   - python=2.7.13 
   - setuptools=27.2.0
   - curl=7.49.0 
-  - pyopenssl=16.2.0
-  - cryptography=1.7
+  - pyopenssl=17.0
+  - cryptography=1.8
   - icu=56
 # tests
   - pytest 
@@ -20,13 +20,14 @@ dependencies:
   - sphinx 
   - sphinx_rtd_theme
 # phoenix
-  - nginx=1.10.1
+  - nginx=1.10.3
   - supervisor=3.3.1
   - gunicorn=19.1.0
   - requests-oauthlib
   - gevent=1.2
   - lxml=3.7
   - mako=1.0 
+  - dateparser=0.5
   - python-dateutil=2.6 
   - requests=2.12 
   - pyyaml=3.12
@@ -37,8 +38,8 @@ dependencies:
   - esgf-pyclient=0.1.8
   - myproxyclient=1.4.4
 # celery
-  - celery=3.1.23
-  - kombu=3.0.35
+  - celery=3.1
+  - kombu=3.0
 # mongodb
   - pymongo=3.3.0
   - mongodb=2.6.*|3.3.9
@@ -49,25 +50,24 @@ dependencies:
   - threddsclient=0.3.4       
 #  - python-ldap=2.4.13
   - funcsigs=1.0.2
-  - bird-feeder=0.2.0
   - pip:
       - genshi==0.7
       - sphinx-autoapi==0.4.0
-      - pyramid==1.8.2
+      - pyramid==1.9
       - pyramid-beaker==0.8
-      - Beaker==1.8.1
+      - Beaker==1.9.0
       - pyramid-deform==0.2
       - deform==2.0.4
-      - pyramid-chameleon==0.3
+      - pyramid-chameleon
       - pyramid-mako==1.0.2
       - pyramid-layout==1.0
       - pyramid-celery==3.0.0
       - pyramid-mailer==0.14.1
       - pyramid-storage==0.1.2
   #    - pyramid-ldap==0.1
-  #    - pyramid-twitcher==0.2.4
+  #    - pyramid-twitcher==0.3.3
       - pyramid-rpc==0.8
-      - colander==1.3.2
+      - colander==1.3.3
       - Authomatic==0.1.0.post1
       - python-openid==2.2.5
   #    - ldappool==1.0

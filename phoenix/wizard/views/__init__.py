@@ -5,9 +5,10 @@ from deform import Form, Button
 from deform import ValidationFailure
 
 from phoenix.views import MyView
+from phoenix.utils import skip_csrf_token
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 wizard_favorite = "wizard_favorite"
 
@@ -91,7 +92,7 @@ class WizardState(object):
         self.session.changed()
 
 
-@view_defaults(permission='view', layout='default')
+@view_defaults(permission='submit', layout='default', require_csrf=True)
 class Wizard(MyView):
     def __init__(self, request, name, title, description=None):
         super(Wizard, self).__init__(request, name, title, description)
@@ -151,7 +152,7 @@ class Wizard(MyView):
         return options
 
     def success(self, appstruct):
-        self.wizard_state.set(self.name, appstruct)
+        self.wizard_state.set(self.name, skip_csrf_token(appstruct))
 
     def appstruct(self):
         return self.wizard_state.get(self.name, {})
@@ -189,12 +190,12 @@ class Wizard(MyView):
         failure_method = getattr(self, '%s_failure' % action)
         try:
             controls = self.request.POST.items()
-            logger.debug("before validate controls=%s", controls)
+            LOGGER.debug("before validate controls=%s", controls)
             appstruct = form.validate(controls)
-            logger.debug("before success appstruct=%s", appstruct)
+            LOGGER.debug("before success appstruct=%s", appstruct)
             result = success_method(appstruct)
         except ValidationFailure as e:
-            logger.exception('Validation of wizard view failed.')
+            LOGGER.exception('Validation of wizard view failed.')
             result = failure_method(e)
         return result
 
@@ -202,9 +203,9 @@ class Wizard(MyView):
         self.wizard_state.previous()
         return HTTPFound(location=self.request.route_path(self.wizard_state.current_step()))
 
-    def next(self, step):
+    def next(self, step, query=None):
         self.wizard_state.next(step)
-        return HTTPFound(location=self.request.route_path(self.wizard_state.current_step()))
+        return HTTPFound(location=self.request.route_path(self.wizard_state.current_step(), _query=query))
 
     def cancel(self):
         self.wizard_state.clear()
@@ -232,10 +233,6 @@ class Wizard(MyView):
             return self.process_form(form, 'next')
         elif 'cancel' in self.request.POST:
             return self.cancel()
-
-        if not self.request.has_permission('submit'):
-            self.session.flash("You are not allowed to execute jobs. Please sign-in.", queue='warning')
-
         result = dict(title=self.title, form=form.render(self.appstruct()))
         custom = self.custom_view()
         return dict(result, **custom)

@@ -5,9 +5,6 @@ from owslib.wps import WebProcessingService
 from phoenix.views import MyView
 from phoenix.utils import wps_caps_url
 
-import logging
-logger = logging.getLogger(__name__)
-
 
 @view_defaults(permission='view', layout="default")
 class ProcessList(MyView):

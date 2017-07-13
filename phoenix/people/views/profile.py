@@ -8,20 +8,19 @@ from deform import Form, ValidationFailure, Button
 
 from phoenix.views import MyView
 from phoenix.utils import ActionButton
-from ..schema import (
+from phoenix.people.schema import (
     ProfileSchema,
     TwitcherSchema,
     ESGFSLCSTokenSchema,
     ESGFCredentialsSchema,
-    C4ISchema,
     GroupSchema
 )
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
-@view_defaults(permission='edit', layout='default')
+@view_defaults(permission='edit', layout='default', require_csrf=True)
 class Profile(MyView):
     def __init__(self, request):
         super(Profile, self).__init__(request, name='profile', title='')
@@ -33,8 +32,6 @@ class Profile(MyView):
     def panel_title(self):
         if self.tab == 'twitcher':
             title = "Personal access token"
-        elif self.tab == 'c4i':
-            title = "C4I access token"
         elif self.tab == 'esgf_slcs':
             title = "ESGF SLCS access token"
         elif self.tab == 'esgf_certs':
@@ -61,11 +58,15 @@ class Profile(MyView):
             appstruct['twitcher_token_expires_at'] = expires_at
         return appstruct
 
+    def readonly(self):
+        if self.tab == 'group':
+            return not self.request.has_permission('admin')
+        else:
+            return False
+
     def schema(self):
         if self.tab == 'twitcher':
             schema = TwitcherSchema()
-        elif self.tab == 'c4i':
-            schema = C4ISchema()
         elif self.tab == 'esgf_slcs':
             schema = ESGFSLCSTokenSchema()
         elif self.tab == 'esgf_certs':
@@ -74,7 +75,7 @@ class Profile(MyView):
             schema = GroupSchema()
         else:
             schema = ProfileSchema()
-        return schema
+        return schema.bind(request=self.request)
 
     def generate_form(self):
         if self.tab == 'group':
@@ -82,13 +83,9 @@ class Profile(MyView):
                          css_class="btn btn-success btn-lg btn-block",
                          disabled=not self.request.has_permission('admin'))
             form = Form(schema=self.schema(), buttons=(btn,),
-                        readonly=not self.request.has_permission('admin'),
                         formid='deform')
         elif self.tab == 'profile':
             btn = Button(name='update', title='Update Profile', css_class="btn btn-success btn-lg btn-block")
-            form = Form(schema=self.schema(), buttons=(btn,), formid='deform')
-        elif self.tab == 'c4i':
-            btn = Button(name='update', title='Update C4I Token', css_class="btn btn-success btn-lg btn-block")
             form = Form(schema=self.schema(), buttons=(btn,), formid='deform')
         else:
             form = Form(schema=self.schema(), formid='deform')
@@ -101,12 +98,6 @@ class Profile(MyView):
                                css_class="btn btn-success btn-xs",
                                disabled=not self.request.has_permission('submit'),
                                href=self.request.route_path('generate_twitcher_token'))
-            btns.append(btn)
-        elif self.tab == 'c4i':
-            btn = ActionButton(name='generate_c4i_token', title='Generate Token',
-                               css_class="btn btn-success btn-xs",
-                               disabled=not self.request.has_permission('submit'),
-                               href="https://dev.climate4impact.eu/impactportal/account/tokenapi.jsp")
             btns.append(btn)
         elif self.tab == 'esgf_slcs':
             btn = ActionButton(name='generate_esgf_slcs_token', title='Generate Token',
@@ -122,12 +113,12 @@ class Profile(MyView):
         elif self.tab == 'esgf_certs':
             btn = ActionButton(name='update_esgf_certs', title='Update Credentials',
                                css_class="btn btn-success btn-xs",
-                               disabled=not self.request.has_permission('submit'),
+                               disabled=not self.request.has_permission('edit'),
                                href=self.request.route_path('update_esgf_certs'))
             btns.append(btn)
             btn = ActionButton(name='forget_esgf_certs', title='Forget Credentials',
                                css_class="btn btn-danger btn-xs",
-                               disabled=not self.request.has_permission('submit'),
+                               disabled=not self.request.has_permission('edit'),
                                href=self.request.route_path('forget_esgf_certs'))
             btns.append(btn)
         return btns
@@ -136,12 +127,12 @@ class Profile(MyView):
         try:
             controls = self.request.POST.items()
             appstruct = form.validate(controls)
-            for key in ['name', 'email', 'organisation', 'notes', 'group', 'c4i_token']:
+            for key in ['name', 'email', 'organisation', 'notes', 'group']:
                 if key in appstruct:
                     self.user[key] = appstruct.get(key)
             self.collection.update({'identifier': self.userid}, self.user)
         except ValidationFailure, e:
-            logger.exception('validation of form failed.')
+            LOGGER.exception('validation of form failed.')
             return dict(form=e.render())
         else:
             self.request.session.flash("Your profile was updated.", queue='success')
@@ -154,9 +145,9 @@ class Profile(MyView):
         if 'update' in self.request.POST:
             return self.process_form(form)
 
-        return dict(user_name=self.user.get('name', 'Unknown'),
+        return dict(user_name=self.user.get('name', 'Guest'),
                     title=self.panel_title(),
                     buttons=self.generate_buttons(),
                     userid=self.userid,
                     active=self.tab,
-                    form=form.render(self.appstruct()))
+                    form=form.render(self.appstruct(), readonly=self.readonly()))

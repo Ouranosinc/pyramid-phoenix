@@ -5,6 +5,7 @@ import deform
 from owslib.wps import WebProcessingService
 
 from phoenix.utils import wps_caps_url
+from phoenix.utils import headline
 from phoenix.wizard.views import Wizard
 
 
@@ -25,7 +26,7 @@ def count_literal_inputs(wps, identifier):
     return len(literal_inputs)
 
 
-class Schema(colander.MappingSchema):
+class Schema(deform.schema.CSRFSchema):
     @colander.deferred
     def deferred_validator(node, kw):
         wps = kw.get('wps')
@@ -38,12 +39,9 @@ class Schema(colander.MappingSchema):
     @colander.deferred
     def deferred_widget(node, kw):
         wps = kw.get('wps')
-
         choices = []
         for process in wps.processes:
-            desc = process.title
-            if hasattr(process, 'abstract'):
-                desc = "{0.title} - {0.abstract}".format(process)
+            desc = "{0} - {1}".format(process.title, headline(process.abstract))
             choices.append((process.identifier, desc))
         return deform.widget.RadioChoiceWidget(values=choices)
 
@@ -71,7 +69,7 @@ class ChooseWPSProcess(Wizard):
         return breadcrumbs
 
     def schema(self):
-        return Schema().bind(wps=self.wps)
+        return Schema().bind(request=self.request, wps=self.wps)
 
     def next_success(self, appstruct):
         self.success(appstruct)
