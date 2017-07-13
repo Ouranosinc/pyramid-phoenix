@@ -5,15 +5,16 @@ from owslib.fes import PropertyIsEqualTo
 
 from phoenix.catalog import THREDDS_TYPE
 from phoenix.events import SettingsChanged
+from phoenix.utils import skip_csrf_token
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 import colander
 import deform
 
 
-class Schema(colander.MappingSchema):
+class Schema(deform.schema.CSRFSchema):
     maxrecords = colander.SchemaNode(
         colander.Int(),
         name='solr_maxrecords',
@@ -55,25 +56,26 @@ class SolrIndexPanel(SolrPanel):
 class SolrParamsPanel(SolrPanel):
 
     def appstruct(self):
-        return self.request.db.settings.find_one() or {}
+        appstruct = self.request.db.settings.find_one() or {}
+        return skip_csrf_token(appstruct)
 
     @panel_config(name='solr_params', renderer='phoenix:templates/panels/form.pt')
     def panel(self):
-        form = Form(schema=Schema(), buttons=('update',))
+        form = Form(schema=Schema().bind(request=self.request), buttons=('update',))
         if 'update' in self.request.POST:
             try:
                 controls = self.request.POST.items()
                 appstruct = form.validate(controls)
                 settings = self.request.db.settings.find_one() or {}
-                settings.update(appstruct)
+                settings.update(skip_csrf_token(appstruct))
                 self.request.db.settings.save(settings)
                 self.request.registry.notify(SettingsChanged(self.request, appstruct))
             except ValidationFailure, e:
-                logger.exception('validation of form failed.')
+                LOGGER.exception('validation of form failed.')
                 return dict(title="Parameters", form=e.render())
             except Exception, e:
-                logger.exception('update failed.')
-                self.request.session.flash('Update of Solr parameters failed. %s' % (e), queue='danger')
+                LOGGER.exception('update failed.')
+                self.request.session.flash('Update of Solr parameters failed.', queue='danger')
             else:
                 self.request.session.flash("Solr parameters updated.", queue='success')
         return dict(title="Parameters", form=form.render(self.appstruct()))

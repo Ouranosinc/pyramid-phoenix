@@ -5,13 +5,13 @@ from phoenix.wizard.views import Wizard
 import threddsclient
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 import colander
 import deform
 
 
-class Schema(colander.MappingSchema):
+class Schema(deform.schema.CSRFSchema):
     url = colander.SchemaNode(
         colander.String(),
         missing='',
@@ -30,7 +30,7 @@ class ThreddsBrowser(Wizard):
         return breadcrumbs
 
     def schema(self):
-        return Schema()
+        return Schema().bind(request=self.request)
 
     def appstruct(self):
         appstruct = super(ThreddsBrowser, self).appstruct()
@@ -42,7 +42,7 @@ class ThreddsBrowser(Wizard):
             self.success(appstruct)
             return self.next('wizard_done')
         else:
-            self.session.flash("Please choose dataset", queue="danger")
+            self.session.flash("Please choose a dataset.", queue="danger")
             return HTTPFound(location=self.request.route_path(self.name))
 
     def custom_view(self):
@@ -62,7 +62,7 @@ class ThreddsBrowser(Wizard):
         if len(back_links) > 0:
             back_url = self.request.route_path('wizard_threddsbrowser', _query=[('url', back_links[-1])])
 
-        logger.debug("wizard state: %s", self.wizard_state.get('wizard_threddsservice'))
+        LOGGER.debug("wizard state: %s", self.wizard_state.get('wizard_threddsservice'))
         catalog = threddsclient.read_url(url)
         items = []
         items.extend(catalog.flat_references())

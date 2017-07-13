@@ -2,11 +2,8 @@ from pyramid.view import view_config, view_defaults
 
 from phoenix.views import MyView
 
-import logging
-logger = logging.getLogger(__name__)
 
-
-@view_defaults(permission='admin', layout='default')
+@view_defaults(permission='admin', layout='default', require_csrf=True)
 class Overview(MyView):
     def __init__(self, request):
         super(Overview, self).__init__(request, name='settings', title='Overview')
@@ -17,17 +14,13 @@ class Overview(MyView):
         buttons = list()
 
         buttons.append(dict(url=self.request.route_path('services'), icon_class="fa fa-server fa-2x", title="Services"))
+        buttons.append(dict(url=self.request.route_path('settings_processes'),
+                            icon_class="fa fa-cogs fa-2x", title="Processes"))
         if self.request.solr_activated:
             buttons.append(dict(url=self.request.route_path('settings_solr', tab='index'),
                                 icon_class="fa fa-search fa-2x", title="Solr"))
-        buttons.append(dict(url=self.request.route_path('settings_auth'),
-                            icon_class="fa fa-lock fa-2x", title="Auth"))
         buttons.append(dict(url=self.request.route_path('settings_ldap'),
                             icon_class="fa fa-sitemap fa-2x", title="LDAP"))
-        buttons.append(dict(url=self.request.route_path('settings_github'),
-                            icon_class="fa fa-github fa-2x", title="GitHub"))
-        buttons.append(dict(url=self.request.route_path('settings_esgf'),
-                            icon_class="fa fa-key fa-2x", title="ESGF SLCS"))
         buttongroups.append(dict(title='Settings', buttons=buttons))
 
         return dict(buttongroups=buttongroups)

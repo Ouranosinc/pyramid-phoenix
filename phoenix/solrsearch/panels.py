@@ -1,9 +1,9 @@
 from pyramid_layout.panel import panel_config
 
-from .search import solr_search
+from phoenix.solrsearch.search import solr_search
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
 def query_path(request):
@@ -25,16 +25,16 @@ def solrsearch_script(context, request):
 
 @panel_config(name='solrsearch', renderer='templates/solrsearch/panels/search.pt')
 def solrsearch(context, request):
+    # TODO: configure this panel dynamically
     query = request.params.get('q', '')
     page = int(request.params.get('page', '0'))
     category = request.params.get('category')
     source = request.params.get('source')
     tag = request.params.get('tag')
 
-    logger.debug("solrsearch panel context %s", context)
+    LOGGER.debug("solrsearch panel context %s", context)
 
     result = dict(query_path=query_path(request), query=query, page=page, category=category, selected_source=source)
     url = request.registry.settings.get('solr.url')
     result.update(solr_search(url=url, query=query, page=page, category=category, source=source, tag=tag))
-    # request.session.flash("Solr service is not available.", queue='danger')
     return result

@@ -1,14 +1,35 @@
 import deform
+from deform.widget import OptGroup
 import colander
 
-from phoenix.security import Admin, User, Guest
 from phoenix.security import AUTH_PROTOCOLS
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 
-class AuthProtocolSchema(colander.MappingSchema):
+@colander.deferred
+def deferred_processes_widget(node, kw):
+    processes = kw.get('processes', [])
+    choices = [('', "Select up to six public processes you'd like to show.")]
+    for group in processes.keys():
+        options = []
+        for process in processes[group]:
+            option = "{}.{}".format(group, process)
+            options.append((option, process))
+        choices.append(OptGroup(group, *options))
+    return deform.widget.Select2Widget(values=choices, multiple=True)
+
+
+class ProcessesSchema(deform.schema.CSRFSchema):
+    pinned_processes = colander.SchemaNode(
+        colander.Set(),
+        widget=deferred_processes_widget,
+        validator=colander.Length(min=0, max=6)
+    )
+
+
+class AuthProtocolSchema(deform.schema.CSRFSchema):
     choices = AUTH_PROTOCOLS.items()
 
     auth_protocol = colander.SchemaNode(
@@ -20,7 +41,7 @@ class AuthProtocolSchema(colander.MappingSchema):
         widget=deform.widget.CheckboxChoiceWidget(values=choices, inline=True))
 
 
-class LdapSchema(colander.MappingSchema):
+class LdapSchema(deform.schema.CSRFSchema):
     server = colander.SchemaNode(
         colander.String(),
         title='Server',
@@ -74,35 +95,3 @@ class LdapSchema(colander.MappingSchema):
         title='User e-mail attribute',
         description='Optional: LDAP attribute to receive user e-mail from query, e.g. "mail"',
         missing='')
-
-
-class GitHubSchema(colander.MappingSchema):
-    github_client_id = colander.SchemaNode(
-        colander.String(),
-        title='GitHub Client ID',
-        description="Register at GitHub: https://github.com/settings/applications/new",
-        validator=colander.Length(min=20),
-    )
-    github_client_secret = colander.SchemaNode(
-        colander.String(),
-        title='GitHub Client Secret',
-        validator=colander.Length(min=20),
-    )
-
-
-class ESGFSLCSSchema(colander.MappingSchema):
-    esgf_slcs_url = colander.SchemaNode(
-        colander.String(),
-        title='URL of ESGF SLCS Service',
-        validator=colander.url,
-    )
-    esgf_slcs_client_id = colander.SchemaNode(
-        colander.String(),
-        title='ESGF SLCS Client ID',
-        validator=colander.Length(min=20),
-    )
-    esgf_slcs_client_secret = colander.SchemaNode(
-        colander.String(),
-        title='ESGF SLCS Client Secret',
-        validator=colander.Length(min=20),
-    )

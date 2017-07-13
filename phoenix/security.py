@@ -14,47 +14,31 @@ from pyramid.security import (
     Everyone,
     Authenticated,
     ALL_PERMISSIONS)
+from pyramid.security import unauthenticated_userid
 
 from authomatic import Authomatic, provider_id
-from authomatic.providers import oauth2, openid
+from authomatic.providers import oauth2
 from phoenix.providers import esgfopenid
 
 from phoenix.twitcherclient import is_public
 
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 Admin = 'group.admin'
+Developer = 'group.develper'
 User = 'group.user'
 Guest = 'group.guest'
 
 AUTH_PROTOCOLS = OrderedDict([
     ('phoenix', 'Phoenix'),
     ('esgf', 'ESGF OpenID'),
-    ('openid', 'OpenID'),
-    ('oauth2', 'OAuth 2.0'),
+    ('github', 'GitHub'),
     ('ldap', 'LDAP')])
 
 
 def has_execute_permission(request, service_name):
     return is_public(request.registry, service_name) or request.has_permission('submit')
-
-
-def allowed_auth_protocols(request):
-    # TODO: refactor auth settings handling
-    settings = request.db.settings.find_one() or {}
-    protocols = ['phoenix', 'esgf', 'oauth2']
-    if 'auth_protocol' in settings:
-        protocols.extend(settings['auth_protocol'])
-    return protocols
-
-
-def default_auth_protocol(request):
-    allowed_protocols = allowed_auth_protocols(request)
-    # use reverse order to get defaul protocol
-    for protocol in AUTH_PROTOCOLS.keys()[::-1]:
-        if protocol in allowed_protocols:
-            return protocol
 
 
 def passwd_check(request, passphrase):
@@ -95,6 +79,8 @@ def groupfinder(userid, request):
     if user:
         if user.get('group') == Admin:
             return [Admin]
+        elif user.get('group') == Developer:
+            return [Developer]
         elif user.get('group') == User:
             return [User]
         else:
@@ -109,6 +95,7 @@ class Root():
         (Allow, Everyone, 'view'),
         (Allow, Authenticated, 'edit'),
         (Allow, User, 'submit'),
+        (Allow, Developer, ('submit', 'explore')),
         (Allow, Admin, ALL_PERMISSIONS)
     ]
 
@@ -127,19 +114,13 @@ def authomatic(request):
         config=authomatic_config(request),
         secret=request.registry.settings.get('authomatic.secret'),
         report_errors=True,
-        logging_level=logger.level)
+        logging_level=LOGGER.level)
 
 
 def authomatic_config(request):
 
     DEFAULTS = {
         'popup': True,
-    }
-
-    OPENID = {
-        'openid': {
-            'class_': openid.OpenID,
-        },
     }
 
     ESGF = {
@@ -184,7 +165,6 @@ def authomatic_config(request):
     # Concatenate the configs.
     config = {}
     config.update(OAUTH2)
-    config.update(OPENID)
     config.update(ESGF)
     config['__defaults__'] = DEFAULTS
     return config
@@ -198,7 +178,7 @@ class MyAuthenticationPolicy(AuthTktAuthenticationPolicy):
 
 
 def get_user(request):
-    user_id = request.unauthenticated_userid
+    user_id = unauthenticated_userid(request)
     if user_id is not None:
         user = request.db.users.find_one({'identifier': user_id})
         return user
@@ -216,3 +196,5 @@ def includeme(config):
     config.set_authentication_policy(authn_policy)
     config.set_authorization_policy(authz_policy)
     config.add_request_method(get_user, 'user', reify=True)
+    # TODO: configure csrf checks
+    # config.set_default_csrf_options(require_csrf=True)

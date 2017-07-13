@@ -2,7 +2,7 @@
 ----------------------- */
 body {
   /* background: white; */
-  padding-top: 50px;
+  /* padding-top: 50px; */
 }
 /* Header
 ----------------------- */
@@ -23,31 +23,71 @@ body {
 /* .breadcrumbs {
     background: white;
 } */
+
+/* Flash messages
+----------------------- */
+.flash-messages {
+  margin-top: -20px;
+}
+
 /* Home
 ----------------------- */
 .jumbotron {
-  background: seagreen;
+  background-color: #8AB219;
+  background-image: url('/static/phoenix/img/pyramid-green.png');
+  background-repeat: no-repeat;
+  background-position: 80% center;
+  background-size: 600px;
   color: white;
   padding: 40px 0 60px;
   text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.4);
-  margin-top: -10px;
+  margin-top: -20px;
 }
 .jumbotron a {
     color: orange
 }
 
+/* Top Box
+----------------------- */
+.topbox {
+    background-color: #8AB219;
+    background-image: url('/static/phoenix/img/pyramid-green.png');
+    background-repeat: no-repeat;
+    background-position: 80% center;
+    background-size: 600px;
+    color: white;
+    padding: 40px 0 60px;
+    text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.4);
+    margin-top: -20px;
+}
+.topbox a {
+    color: orange
+}
+
+
 /* Info Box
 ----------------------- */
 .infobox {
     text-align: center;
+    background: #C5C997;
+    padding: 20px;
+}
+
+/* Highlight Box
+----------------------- */
+.hilitbox {
+    text-align: center;
     background: white;
     padding: 20px;
+}
+.hilitbox a {
+    color: orange
 }
 
 /* Birdhouse Box
 ----------------------- */
 .birdhouse {
-    background: seagreen;
+    background: #183F7F;
     color: white;
 }
 .birdhouse a {

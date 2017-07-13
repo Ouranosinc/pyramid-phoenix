@@ -1,14 +1,10 @@
 import os
 from datetime import datetime
-from datetime import timedelta
-from dateutil import parser as datetime_parser
 
 from owslib.util import build_get_url
 
-from pyramid.security import authenticated_userid
-
 import logging
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger("PHOENIX")
 
 # buttons
 # see kotti: https://github.com/Kotti/Kotti
@@ -45,54 +41,57 @@ class ActionButton(object):
     def __repr__(self):
         return u'ActionButton({0}, {1})'.format(self.name, self.title)
 
-
-# upload helpers
-
-def save_upload(request, filename, fs=None):
-    logger.debug("save_upload: filename=%s, fs=%s", filename, fs)
-    if request.storage.exists(os.path.basename(filename)):
-        request.storage.delete(os.path.basename(filename))
-    if fs is None:
-        stored_filename = request.storage.save_filename(filename)
-        logger.debug('saved chunked file to upload storage %s', stored_filename)
-    else:
-        stored_filename = request.storage.save_file(fs.file, filename=filename)
-        logger.debug('saved file to upload storage %s', stored_filename)
+# processes
 
 
-def save_chunk(fs, path):
-    """
-    Save an uploaded chunk.
+def pinned_processes(request):
+    from owslib.wps import WebProcessingService
+    settings = request.db.settings.find_one() or {}
+    processes = []
+    if 'pinned_processes' in settings:
+        for pinned in settings.get('pinned_processes'):
+            try:
+                service_name, identifier = pinned.split('.', 1)
+                url = request.route_path(
+                    'processes_execute', _query=[('wps', service_name), ('process', identifier)])
+                wps = WebProcessingService(
+                    url=request.route_url('owsproxy', service_name=service_name), verify=False)
+                # TODO: need to fix owslib to handle special identifiers
+                process = wps.describeprocess(identifier)
+                description = headline(process.abstract)
+            except Exception, err:
+                LOGGER.warn("could not add pinned process %s", pinned)
+            else:
+                processes.append(dict(
+                    title=process.identifier,
+                    description=description,
+                    url=url,
+                    service_title=wps.identification.title))
+    return processes
 
-    Chunks are stored in chunks/
-    """
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    with open(path, 'wb+') as destination:
-        destination.write(fs.read())
 
+# csrf
 
-def combine_chunks(total_parts, source_folder, dest):
-    """
-    Combine a chunked file into a whole file again. Goes through each part
-    , in order, and appends that part's bytes to another destination file.
+def skip_csrf_token(appstruct):
+    if 'csrf_token' in appstruct:
+        del appstruct['csrf_token']
+    return appstruct
 
-    Chunks are stored in chunks/
-    """
-
-    logger.debug("Combining chunks: %s", source_folder)
-
-    if not os.path.exists(os.path.dirname(dest)):
-        os.makedirs(os.path.dirname(dest))
-
-    with open(dest, 'wb+') as destination:
-        for i in xrange(int(total_parts)):
-            part = os.path.join(source_folder, str(i))
-            with open(part, 'rb') as source:
-                destination.write(source.read())
-        logger.debug("Combined: %s", dest)
 
 # misc
+
+def headline(text, max_length=120):
+    if text:
+        if max_length < 25:
+            max_length = 25
+        elif max_length > 120:
+            max_length = 120
+        caption = text.split('.', 1)[0].strip() + '.'
+        if len(caption) > max_length:
+            caption = "{} ...".format(caption[:max_length - 4])
+    else:
+        caption = "No summary"
+    return caption
 
 
 def make_tags(tags_str):
@@ -126,25 +125,6 @@ def localize_datetime(dt, tz_name='UTC'):
     timezone = pytz.timezone(tz_name)
     tz_aware_dt = aware.astimezone(timezone)
     return tz_aware_dt
-
-
-def get_user(request):
-    userid = authenticated_userid(request)
-    return request.db.users.find_one(dict(identifier=userid))
-
-
-def user_cert_valid(request, valid_hours=3):
-    if get_user(request).get('esgf_token'):
-        return True
-    cert_expires = get_user(request).get('cert_expires')
-    if cert_expires is not None:
-        timestamp = datetime_parser.parse(cert_expires)
-        now = localize_datetime(datetime.utcnow())
-        valid_hours = timedelta(hours=valid_hours)
-        # cert must be valid for some hours
-        if timestamp > now + valid_hours:
-            return True
-    return False
 
 
 def is_url(url):

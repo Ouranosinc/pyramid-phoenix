@@ -1,6 +1,8 @@
 import unittest
 
 from phoenix.geoform.form import BBoxValidator
+from phoenix.geoform.form import URLValidator
+from phoenix.geoform.form import TextValidator
 
 
 def invalid_exc(func, *arg, **kw):
@@ -10,7 +12,7 @@ def invalid_exc(func, *arg, **kw):
     except Invalid as e:
         return e
     else:
-        raise AssertionError('Invalid not raised') # pragma: no cover
+        raise AssertionError('Invalid not raised')  # pragma: no cover
 
 
 class TestBBoxValidator(unittest.TestCase):
@@ -37,3 +39,41 @@ class TestBBoxValidator(unittest.TestCase):
         validator = BBoxValidator()
         e = invalid_exc(validator, None, "0,-90,180,91")
         self.assertEqual(e.msg, 'MaxY out of range [-90, 90].')
+
+
+class TestURLValidator(unittest.TestCase):
+    def test_default(self):
+        validator = URLValidator()
+        self.assertEqual(validator(None, "http://somewhere/test.txt"), None)
+        self.assertEqual(validator(None, "https://somewhere/test.txt"), None)
+
+    def test_file_scheme(self):
+        validator = URLValidator()
+        e = invalid_exc(validator, None, "file:///var/lib/test.txt")
+        self.assertEqual(e.msg, 'URL scheme file is not allowed.')
+
+    def test_invalid_path(self):
+        validator = URLValidator()
+        e = invalid_exc(validator, None, "http://")
+        self.assertEqual(e.msg, 'Invalid URL.')
+
+    def test_invalid_relative_path(self):
+        validator = URLValidator()
+        e = invalid_exc(validator, None, "http://test/download/../readme.txt")
+        self.assertEqual(e.msg, 'Invalid URL.')
+
+
+class TestTextValidator(unittest.TestCase):
+    def test_default(self):
+        validator = TextValidator()
+        self.assertEqual(validator(None, "hello world"), None)
+
+    def test_empty(self):
+        validator = TextValidator()
+        e = invalid_exc(validator, None, "   ")
+        self.assertEqual(e.msg, 'Invalid value ... empty.')
+
+    def test_restricted_chars(self):
+        validator = TextValidator()
+        e = invalid_exc(validator, None, "Hello World!")
+        self.assertEqual(e.msg, 'Invalid value ... containts restricted characters.')

@@ -1,5 +1,5 @@
-import uuid
-from datetime import datetime
+import datetime
+import json
 
 from phoenix.db import mongodb
 from phoenix.twitcherclient import generate_access_token
@@ -19,6 +19,16 @@ def wait_secs(run_step=-1):
     if run_step >= len(secs_list):
         run_step = -1
     return secs_list[run_step]
+
+
+def dump_json(obj):
+    date_handler = lambda obj: (
+        obj.isoformat()
+        if isinstance(obj, datetime.datetime)
+        or isinstance(obj, datetime.date)
+        else None
+    )
+    return json.dumps(obj, default=date_handler)
 
 
 def save_log(job, error=None):
@@ -54,7 +64,7 @@ def add_job(db, task_id, process_id, title=None, abstract=None,
     else:
         tags.append('sync')
     job = dict(
-        identifier=uuid.uuid4().get_hex(),
+        identifier=task_id,
         task_id=task_id,             # TODO: why not using as identifier?
         userid=userid or 'guest',
         is_workflow=is_workflow,
@@ -64,7 +74,7 @@ def add_job(db, task_id, process_id, title=None, abstract=None,
         title=title or process_id,              # process title (identifier or title)
         abstract=abstract or "No Summary",
         status_location=status_location,
-        created=datetime.now(),
+        created=datetime.datetime.now(),
         tags=tags,
         caption=caption,
         status="ProcessAccepted",
@@ -78,18 +88,9 @@ def add_job(db, task_id, process_id, title=None, abstract=None,
 def get_access_token(userid):
     registry = app.conf['PYRAMID_REGISTRY']
     db = mongodb(registry)
-
     # refresh access token
     token = generate_access_token(registry, userid=userid)
     return token.get('access_token')
-
-
-def get_c4i_access_token(userid):
-    registry = app.conf['PYRAMID_REGISTRY']
-    db = mongodb(registry)
-
-    user = db.users.find_one(dict(identifier=userid))
-    return user.get('c4i_token')
 
 
 def wps_headers(userid):
@@ -98,7 +99,4 @@ def wps_headers(userid):
         access_token = get_access_token(userid)
         if access_token:
             headers['Access-Token'] = access_token
-        c4i_access_token = get_c4i_access_token(userid)
-        if c4i_access_token:
-            headers['C4I-Access-Token'] = c4i_access_token
     return headers

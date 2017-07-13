@@ -1,7 +1,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-__version__ = '0.7.2'
+__version__ = '0.8.0'
 
 
 def main(global_config, **settings):
@@ -32,9 +32,6 @@ def main(global_config, **settings):
     config.include('pyramid_celery')
     config.configure_celery(global_config['__file__'])
 
-    # storage
-    config.include('pyramid_storage')
-
     # ldap
     config.include('phoenix.ldap')
     # FK: Ldap setup functions will be called on demand.
@@ -55,8 +52,9 @@ def main(global_config, **settings):
 
     # routes
     config.add_route('home', '/')
-    config.add_route('download_storage', 'download/storage/{filename:.*}')
-    config.add_route('upload', 'upload')
+
+    # storage
+    config.include('phoenix.storage')
 
     # settings
     config.include('phoenix.settings')
@@ -77,7 +75,7 @@ def main(global_config, **settings):
     config.include('phoenix.monitor')
 
     # esgf search
-    config.include('phoenix.esgfsearch')
+    config.include('phoenix.esgf')
 
     # user profiles
     config.include('phoenix.people')

@@ -6,9 +6,6 @@ from phoenix.wizard.views import Wizard
 from phoenix.wps import WPSSchema
 from phoenix.utils import wps_describe_url
 
-import logging
-logger = logging.getLogger(__name__)
-
 
 def includeme(config):
     config.add_route('wizard_literal_inputs', '/wizard/literal_inputs')
@@ -33,7 +30,10 @@ class LiteralInputs(Wizard):
         return breadcrumbs
 
     def schema(self):
-        return WPSSchema(request=self.request, hide_complex=True, process=self.process)
+        return WPSSchema(
+            request=self.request,
+            hide_complex=True,
+            process=self.process).bind(request=self.request)
 
     def next_success(self, appstruct):
         self.success(appstruct)

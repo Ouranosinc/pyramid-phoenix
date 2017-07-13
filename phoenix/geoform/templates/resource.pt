@@ -4,8 +4,10 @@
                  mask mask|field.widget.mask;
                  mask_placeholder mask_placeholder|field.widget.mask_placeholder;
                  cart cart|field.widget.cart;
+                 mime_types mime_types|field.widget.mime_types;
                  upload upload|field.widget.upload;
                  storage_url storage_url|field.widget.storage_url;
+                 size_limit size_limit|field.widget.size_limit;
                  style style|field.widget.style;
                  "
      tal:omit-tag="">
@@ -88,7 +90,9 @@
               $("#"+oid+"-cart").click(function(event) {
                    // set cart items
                    var cartItems = '';
-                   $.getJSON("/list_cart.json", function(json) {
+                   var queryURL = '/list_cart.json';
+                   queryURL += "?mimetype=${','.join(mime_types)}";
+                   $.getJSON(queryURL, function(json) {
                      $.each(json, function(i, item) {
                        cartItems += '<option value=' + item.url + '>' + item.title + '</option>';
                      });
@@ -116,7 +120,7 @@
              });
              // uploader
 $("#"+oid+"-fine-uploader").fineUploader({
-  debug: true,
+  debug: false,
   template: 'qq-template',
   request: {
     endpoint: '/upload'
@@ -138,7 +142,7 @@ $("#"+oid+"-fine-uploader").fineUploader({
     //}
   },
   deleteFile: {
-    enabled: false,
+    enabled: true,
     endpoint: '/upload'
   },
   resume: {
@@ -151,35 +155,12 @@ $("#"+oid+"-fine-uploader").fineUploader({
   validation: {
     allowedExtensions: ['nc'],
     itemLimit: 1,
-    sizeLimit: 268435456, // 256 MB = 256 * 1024 * 1024 bytes
+    sizeLimit: ${size_limit}
   },
   callbacks: {
-    onValidate: function(id, name) {
-      console.log("onValidate");
-    },
-    onSubmit: function(id, name) {
-      console.log("onSubmit");
-    },
-    onUpload: function(id, name) {
-      console.log("onUpload");
-    },
-    onProgress: function(id, name) {
-      console.log("onProgress");
-    },
-    onCancel: function(id, name) {
-      console.log("onCancel");
-    },
-    onError: function(id, name) {
-      console.log("onError");
-    },
     onComplete: function(id, name, response) {
-      console.log("onComplete");
-      //var previewLink = qq(this.getItemByFileId(id)).getByClass('preview-link')[0];
-
       if (response.success) {
-        //previewLink.setAttribute("href", response.tempLink)
-        console.log(name);
-        $("#"+oid).val("${storage_url}"+name);
+        $("#"+oid).val("${storage_url}"+response.filename);
         $("#"+oid).prop('title', name);
       }
     }

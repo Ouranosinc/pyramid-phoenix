@@ -1,5 +1,5 @@
-<nav class="navbar navbar-default navbar-fixed-top" role="navigation">
-  <div class="container-fluid">
+<nav class="navbar navbar-inverse" role="navigation">
+  <div class="container">
     <div class="navbar-header">
       <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
               aria-expanded="false">
@@ -8,7 +8,7 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="/">Phoenix</a>
+      <a class="navbar-brand" href="/">PHOENIX</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <!-- nav with text -->
@@ -25,8 +25,36 @@
 
       <!-- static links -->
       <ul class="nav navbar-nav">
-        <li>
-          <a class="navbar-link" href="${request.route_url('readthedocs', part='index')}" target="_">Help</a>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle nav-user-dropdown" data-toggle="dropdown" role="button" aria-expanded="false">
+            Help<span class="caret"></span></a>
+          <ul class="dropdown-menu" role="menu">
+            <li>
+              <a href="${request.route_url('readthedocs', part='index')}" target="_">
+                <i class="fa fa-book"></i> User Documentation
+              </a>
+            </li>
+            <li>
+              <a href="${request.route_url('readthedocs', part='tutorial')}" target="_">
+                <i class="fa fa-medkit"></i> Tutorial
+              </a>
+            </li>
+            <li>
+              <a href="https://birdhouse.readthedocs.io/en/latest/contributing.html" target="_">
+                <i class="fa fa-retweet"></i> Contributing
+              </a>
+            </li>
+            <li>
+              <a href="http://bird-house.github.io/" target="_">
+                <i class="fa fa-home"></i> Birdhouse
+              </a>
+            </li>
+            <li>
+              <a href="http://geoprocessing.info/" target="_">
+                <i class="fa fa-road"></i> Further Reading on Web Processing Services
+              </a>
+            </li>
+          </ul>
         </li>
       </ul>
 
@@ -56,21 +84,33 @@
         <!-- sign-in -->
         <li tal:condition="not request.user">
           <div class="col-sm-12">
-            <a href="/account/login/${protocol}" class="btn btn-default navbar-btn">Sign in</a>
-            <a href="/account/register" class="btn btn-success navbar-btn">Sign up</a>
+            <a href="${request.route_path('sign_in')}" class="btn btn-link navbar-btn">Sign In</a>
           </div>
         </li>
         <!-- user -->
         <li tal:condition="request.user" class="dropdown">
           <a href="#" class="dropdown-toggle nav-user-dropdown" data-toggle="dropdown" role="button" aria-expanded="false">
-            <span class="fa fa-power-off text-danger"></span> ${request.user.get('name', 'Unknown')} <span class="caret"></span></a>
+            <span class="fa fa-user-circle-o fa-lg"></span> ${request.user.get('name', 'Guest')} <span class="caret"></span></a>
           <ul class="dropdown-menu" role="menu">
             <li>
               <a href="${request.route_path('profile', userid=request.unauthenticated_userid, tab='profile')}"><i class="fa fa-user fa-lg p-r-xs"></i> My Profile</a>
             </li>
+            <li tal:condition="request.has_permission('edit')">
+              <a href="${request.route_path('cart')}"><i class="fa fa-shopping-cart fa-lg p-r-xs"></i> Cart</a>
+            </li>
+            <li tal:condition="request.has_permission('admin')" role="separator" class="divider"></li>
+            <li tal:condition="request.has_permission('admin')">
+              <a href="${request.route_path('people')}"><i class="fa fa-users fa-lg p-r-xs"></i> People</a>
+            </li>
+            <li tal:condition="request.has_permission('admin')">
+              <a href="${request.route_path('supervisor')}"><i class="fa fa-eye fa-lg p-r-xs"></i> Supervisor</a>
+            </li>
+            <li tal:condition="request.has_permission('admin')">
+              <a href="${request.route_path('settings')}"><i class="fa fa-wrench fa-lg p-r-xs"></i> Settings</a>
+            </li>
             <li role="separator" class="divider"></li>
             <li>
-              <a href="/account/logout"><i class="fa fa-sign-out fa-lg p-r-xs"></i> Log out</a>
+              <a href="/account/logout"><i class="fa fa-sign-out fa-lg p-r-xs"></i> Sign Out</a>
             </li>
           </ul>
         </li>
