@@ -43,4 +43,4 @@ EXPOSE 9001 $HTTP_PORT $HTTPS_PORT $OUTPUT_PORT
 ENV DAEMON_OPTS --nodaemon
 
 # Start service ...
-CMD ["make", "update-config", "start"]
+CMD ["make", "update-config", "start", "set_wps_providers"]
