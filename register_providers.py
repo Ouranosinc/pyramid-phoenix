@@ -1,4 +1,5 @@
 import os
+import time
 import yaml
 
 hostname = os.environ['HOSTNAME']
@@ -16,6 +17,7 @@ while attempt < 10:
                                          '--data "password={0}&submit=submit"').format(admin_pw),
                                  url=login_url)) == 0:
         break
+    time.sleep(6)
     attempt += 1
 if attempt == 10:
     raise Exception('Cannot log in to {0}'.format(login_url))    
