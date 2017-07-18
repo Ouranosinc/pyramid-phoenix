@@ -7,7 +7,7 @@ curl_cmd = 'curl -s -o /dev/null -w "{msg_out} : %{{http_code}}\\n" {params} {ur
 providers_cfg = yaml.load(file('./providers.cfg', 'r'))
 admin_pw = providers_cfg['admin_pw']
 providers = providers_cfg['providers']
-login_url = 'https://{0}:8443/account/login/phoenix'.format(hostname)
+login_url = 'https://{0}:8443/account/login'.format(hostname)
 cookie_fn = '/tmp/login_cookie'
 
 # Allow some time for Phoenix to start (if we are called in the docker startup sequence)
@@ -15,13 +15,14 @@ attempt = 0
 while attempt < 10:
     if os.system(curl_cmd.format(msg_out='Login response',
                                  params=('--cookie-jar {0} '
-                                         '--data "password={1}&submit=submit"').format(cookie_fn, admin_pw),
+                                         '--data '
+                                         '"password={1}&csrf_token=0&submit=submit"').format(cookie_fn, admin_pw),
                                  url=login_url)) == 0:
         break
     time.sleep(6)
     attempt += 1
 if attempt == 10:
-    raise Exception('Cannot log in to {0}'.format(login_url))    
+    raise Exception('Cannot log in to {0}'.format(login_url))
 
 for provider in providers:
     cfg = providers[provider]
@@ -34,6 +35,7 @@ for provider in providers:
              'service_title={cfg[title]}&'
              'public={public}&'
              'c4i={cfg[c4i]}&'
+             'csrf_token=0&'
              'service_type=WPS&'
              'register=register"').format(cookie=cookie_fn,
                                           name=provider,
