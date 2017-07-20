@@ -141,6 +141,7 @@ class ExecuteProcess(MyView):
             async=appstruct.get('_async_check', True))
         self.session['task_id'] = result.id
         self.request.registry.notify(JobStarted(self.request, result.id))
+        return result.id
 
     @view_config(renderer='json', route_name='processes_check_queue')
     def check_queue(self):
