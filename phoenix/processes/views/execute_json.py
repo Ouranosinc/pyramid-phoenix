@@ -33,7 +33,6 @@ class ExecuteProcessJson(ExecuteProcess):
             appstruct = form.validate(controls)
             logger.debug("before execute %s", appstruct)
             task_id = self.execute(appstruct)
-            raise Exception('error')
         except Exception as e:
             logger.exception('validation of exectue view failed.')
             return dict(
