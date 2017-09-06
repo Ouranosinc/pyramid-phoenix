@@ -1,4 +1,6 @@
+import types
 from pyramid.view import view_config, view_defaults
+from pyramid.httpexceptions import HTTPBadRequest
 
 from owslib.wps import ComplexData
 
@@ -46,15 +48,28 @@ class ExecuteProcessJson(ExecuteProcess):
             task_id=task_id
         )
 
-    @view_config(route_name='processes_execute', renderer='json', accept='application/json')
-    def view(self):
+    @view_config(route_name='processes_execute', request_method='POST', renderer='json', accept='application/json')
+    def execute(self):
         if 'submit' in self.request.POST:
             form = self.generate_form()
             return self.process_form(form)
+        elif self.request.content_type == 'application/json':
+            inputs = []
+            for key, values in self.request.json_body.items():
+                if not isinstance(values, types.ListType):
+                    values = [values]
+                for value in values:
+                    inputs.append((key, value))
+        else:
+            raise HTTPBadRequest(detail='Request content type must be application/json')
 
+        try:
+            return dict(task_id=ExecuteProcess.execute(self, inputs=inputs))
+        except Exception as e:
+            raise HTTPBadRequest(detail=e.message)
 
-
-
+    @view_config(route_name='processes_execute', request_method='GET', renderer='json', accept='application/json')
+    def get_capabilities(self):
         dataInputs = getattr(self.process, 'dataInputs', [])
         json_inputs = [{'dataType': data_input.dataType,
                         'name': getattr(data_input, 'identifier', ''),

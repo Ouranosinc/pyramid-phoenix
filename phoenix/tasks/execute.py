@@ -16,7 +16,8 @@ logger = get_task_logger(__name__)
 
 
 @app.task(bind=True)
-def execute_process(self, url, service_name, identifier, inputs, outputs, async=True, userid=None, caption=None):
+def execute_process(self, url, service_name, identifier, inputs, outputs,
+                    async=True, userid=None, caption=None, headers=None):
     registry = app.conf['PYRAMID_REGISTRY']
     db = mongodb(registry)
     job = add_job(
@@ -30,7 +31,12 @@ def execute_process(self, url, service_name, identifier, inputs, outputs, async=
         caption=caption)
 
     try:
-        wps = WebProcessingService(url=url, skip_caps=False, verify=False, headers=wps_headers(userid))
+        if headers:
+            headers.update(wps_headers(userid))
+        else:
+            headers = wps_headers(userid)
+
+        wps = WebProcessingService(url=url, skip_caps=False, verify=False, headers=headers)
         execution = wps.execute(identifier, inputs=inputs, output=outputs, async=async, lineage=True)
         # job['service'] = wps.identification.title
         # job['title'] = getattr(execution.process, "title")

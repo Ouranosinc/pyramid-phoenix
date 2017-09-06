@@ -98,7 +98,8 @@ class ExecuteProcess(MyView):
             logger.debug("before validate %s", controls)
             appstruct = form.validate(controls)
             logger.debug("before execute %s", appstruct)
-            self.execute(appstruct)
+            self.execute(inputs=appstruct_to_inputs(self.request, appstruct),
+                         async=appstruct.get('_async_check', True))
         except ValidationFailure, e:
             logger.exception('validation of exectue view failed.')
             self.session.flash("There are errors on this page.", queue='danger')
@@ -110,8 +111,7 @@ class ExecuteProcess(MyView):
         else:
             return HTTPFound(location=self.request.route_url('monitor'))
 
-    def execute(self, appstruct):
-        inputs = appstruct_to_inputs(self.request, appstruct)
+    def execute(self, inputs, async=True):
         # need to use ComplexDataInput
         complex_inpts = []
         for inpt in self.process.dataInputs:
@@ -131,6 +131,14 @@ class ExecuteProcess(MyView):
                 (output.identifier, output.dataType == 'ComplexData'))
 
         from phoenix.tasks.execute import execute_process
+
+        headers = {}
+        try:
+            token = self.request.cookies['auth_tkt']
+            headers = dict(Cookie='auth_tkt={token}'.format(token=token))
+        except KeyError:
+            pass
+
         result = execute_process.delay(
             userid=self.request.unauthenticated_userid,
             url=self.wps.url,
@@ -138,7 +146,8 @@ class ExecuteProcess(MyView):
             identifier=self.process.identifier,
             inputs=inputs,
             outputs=outputs,
-            async=appstruct.get('_async_check', True))
+            async=async,
+            headers=headers)
         self.session['task_id'] = result.id
         self.request.registry.notify(JobStarted(self.request, result.id))
         return result.id
