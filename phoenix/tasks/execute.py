@@ -5,6 +5,7 @@ from time import sleep
 from pyramid_celery import celery_app as app
 
 from owslib.wps import WebProcessingService
+from owslib.wps import WPSException
 
 from phoenix.db import mongodb
 from phoenix.events import JobFinished
@@ -40,6 +41,9 @@ def execute_process(self, url, service_name, identifier, inputs, outputs,
         execution = wps.execute(identifier, inputs=inputs, output=outputs, async=async, lineage=True)
         # job['service'] = wps.identification.title
         # job['title'] = getattr(execution.process, "title")
+        if not execution.process and execution.errors:
+            raise execution.errors[0]
+
         job['abstract'] = getattr(execution.process, "abstract")
         job['status_location'] = execution.statusLocation
         job['request'] = execution.request
@@ -83,10 +87,15 @@ def execute_process(self, url, service_name, identifier, inputs, outputs,
             finally:
                 save_log(job)
                 db.jobs.update({'identifier': job['identifier']}, job)
-    except Exception as exc:
+
+    except (WPSException, Exception) as exc:
         logger.exception("Failed to run Job")
         job['status'] = "ProcessFailed"
-        job['status_message'] = "Error: {0}".format(exc.message)
+        if isinstance(exc, WPSException):
+            job['status_message'] = "Error: [{0}] {1}".format(exc.locator, exc.text)
+        else:
+            job['status_message'] = "Error: {0}".format(exc.message)
+
     finally:
         save_log(job)
         db.jobs.update({'identifier': job['identifier']}, job)
