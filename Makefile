@@ -212,8 +212,8 @@ update-config:
 clean: srcclean envclean
 	@echo "Cleaning buildout files ..."
 	@-for i in $(BUILDOUT_FILES); do \
-            test -e $$i && rm -v -rf $$i; \
-        done
+		test -e $$i && rm -v -rf $$i; \
+	done
 
 .PHONY: envclean
 envclean: stop
@@ -251,8 +251,8 @@ testall:
 
 .PHONY: pep8
 pep8:
-    @echo "Running pep8 code style checks ..."
-    $(CONDA_ENV_PATH)/bin/flake8
+	@echo "Running pep8 code style checks ..."
+	$(CONDA_ENV_PATH)/bin/flake8
 
 .PHONY: docs
 docs:
