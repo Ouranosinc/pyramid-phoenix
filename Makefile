@@ -13,9 +13,9 @@ OS_NAME := $(shell uname -s 2>/dev/null || echo "unknown")
 CPU_ARCH := $(shell uname -m 2>/dev/null || uname -p 2>/dev/null || echo "unknown")
 
 # Python
-SETUPTOOLS_VERSION := 27.2.0
+SETUPTOOLS_VERSION := 36.5.0
 CONDA_VERSION := 4.3
-BUILDOUT_VERSION := 2.9.2
+BUILDOUT_VERSION := 2.9.5
 
 # Anaconda
 ANACONDA_HOME ?= $(HOME)/anaconda
@@ -171,7 +171,7 @@ conda_env: anaconda conda_config
 .PHONY: conda_pinned
 conda_pinned: conda_env
 	@echo "Update pinned conda packages ..."
-	@test -d $(CONDA_ENV_PATH) && test -f $(CONDA_PINNED) && cp -f "$(CONDA_PINNED)" "$(CONDA_ENV_PATH)/conda-meta/pinned"
+	@-test -d $(CONDA_ENV_PATH) && test -f $(CONDA_PINNED) && cp -f "$(CONDA_PINNED)" "$(CONDA_ENV_PATH)/conda-meta/pinned"
 
 .PHONY: export
 export:
@@ -251,13 +251,13 @@ testall:
 
 .PHONY: pep8
 pep8:
-		@echo "Running pep8 checks ..."
-		bash -c "source $(ANACONDA_HOME)/bin/activate $(CONDA_ENV); flake8"
+    @echo "Running pep8 code style checks ..."
+    $(CONDA_ENV_PATH)/bin/flake8
 
 .PHONY: docs
 docs:
 	@echo "Generating docs with Sphinx ..."
-	$(MAKE) -C $@ clean linkcheck html
+	$(MAKE) -C $@ clean html
 	@echo "open your browser: firefox docs/build/html/index.html"
 
 .PHONY: selfupdate
