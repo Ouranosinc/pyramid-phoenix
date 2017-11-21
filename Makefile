@@ -264,12 +264,6 @@ docs:
 selfupdate: bootstrap.sh requirements.sh .gitignore
 	@curl "https://raw.githubusercontent.com/bird-house/birdhousebuilder.bootstrap/$(RELEASE)/Makefile" --silent --insecure --output Makefile
 
-
-.PHONY: set_wps_providers
-set_wps_providers: 
-	@echo "Set phoenix providers on a running instance ..."
-	bash -c "source $(ANACONDA_HOME)/bin/activate $(CONDA_ENV); python ./register_providers.py"
-
 ## Supervisor targets
 
 .PHONY: start
