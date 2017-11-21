@@ -1,4 +1,4 @@
-VERSION := 0.3.9
+VERSION := 0.3.13
 RELEASE := master
 
 # Include custom config if it is available
@@ -64,16 +64,20 @@ help:
 	@echo "  sysinstall  to install system packages from requirements.sh. You can also call 'bash requirements.sh' directly."
 	@echo "  update      to update your application by running 'bin/buildout -o -c custom.cfg' (buildout offline mode)."
 	@echo "  clean       to delete all files that are created by running buildout."
-	@echo "  export      to export the conda environment. Caution! You always need to check it the enviroment.yml is working."
 	@echo "\nTesting targets:"
 	@echo "  test        to run tests (but skip long running tests)."
 	@echo "  testall     to run all tests (including long running tests)."
+	@echo "  pep8        to run pep8 code style checks."
+	@echo "\nSphinx targets:"
+	@echo "  docs        to generate HTML documentation with Sphinx."
+	@echo "  linkcheck   to check all external links in documentation for integrity."
+	@echo "  doc8        to run doc8 documentation style checks."
 	@echo "\nSupporting targets:"
 	@echo "  envclean    to remove the conda enviroment $(CONDA_ENV)."
 	@echo "  srcclean    to remove all *.pyc files."
 	@echo "  distclean   to remove *all* files that are not controlled by 'git'. WARNING: use it *only* if you know what you do!"
 	@echo "  passwd      to generate password for 'phoenix-password' in custom.cfg."
-	@echo "  docs        to generate HTML documentation with Sphinx."
+	@echo "  export      to export the conda environment. Caution! You always need to check it the enviroment.yml is working."
 	@echo "  selfupdate  to update this Makefile."
 	@echo "\nSupervisor targets:"
 	@echo "  start       to start supervisor service."
@@ -118,11 +122,6 @@ bootstrap.sh:
 	@echo "Update bootstrap.sh ..."
 	@curl "https://raw.githubusercontent.com/bird-house/birdhousebuilder.bootstrap/$(RELEASE)/bootstrap.sh" --silent --insecure --output bootstrap.sh "https://raw.githubusercontent.com/bird-house/birdhousebuilder.bootstrap/$(RELEASE)/bootstrap.sh"
 	@chmod 755 bootstrap.sh
-
-requirements.sh:
-	@echo "Setup default requirements.sh ..."
-	@curl "https://raw.githubusercontent.com/bird-house/birdhousebuilder.bootstrap/$(RELEASE)/requirements.sh" --silent --insecure --output requirements.sh
-	@chmod 755 requirements.sh
 
 custom.cfg:
 	@echo "Using custom.cfg for buildout ..."
@@ -190,7 +189,7 @@ sysinstall:
 	@echo "\nInstalling system packages for bootstrap ..."
 	@bash bootstrap.sh -i
 	@echo "\nInstalling system packages for your application ..."
-	@test -f requirements.sh || bash requirements.sh
+	@-test -f requirements.sh && bash requirements.sh
 
 .PHONY: install
 install: bootstrap
@@ -212,8 +211,8 @@ update-config:
 clean: srcclean envclean
 	@echo "Cleaning buildout files ..."
 	@-for i in $(BUILDOUT_FILES); do \
-		test -e $$i && rm -v -rf $$i; \
-	done
+            test -e $$i && rm -v -rf $$i; \
+        done
 
 .PHONY: envclean
 envclean: stop
@@ -260,8 +259,18 @@ docs:
 	$(MAKE) -C $@ clean html
 	@echo "open your browser: firefox docs/build/html/index.html"
 
+.PHONY: linkcheck
+linkcheck:
+	@echo "Run link checker on docs..."
+	$(MAKE) -C docs linkcheck
+
+.PHONY: doc8
+doc8:
+	@echo "Running doc8 doc style checks ..."
+	$(CONDA_ENV_PATH)/bin/doc8 docs/
+
 .PHONY: selfupdate
-selfupdate: bootstrap.sh requirements.sh .gitignore
+selfupdate: bootstrap.sh .gitignore
 	@curl "https://raw.githubusercontent.com/bird-house/birdhousebuilder.bootstrap/$(RELEASE)/Makefile" --silent --insecure --output Makefile
 
 ## Supervisor targets
@@ -308,3 +317,4 @@ dockerbuild: Dockerfile
 dockerrun: dockerbuild
 	@echo "Run docker image ..."
 	docker run -i -t -p 9001:9001 --name=$(DOCKER_CONTAINER) $(DOCKER_IMAGE) /bin/bash
+
